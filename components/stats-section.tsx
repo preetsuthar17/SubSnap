@@ -13,8 +13,13 @@ import {
   calculateAverageMonthlyCost,
   calculateMonthlyCost,
   calculateTotalSpent,
+  calculateYearlyCost,
   getMostCostlySubscription,
+  getNextRenewal,
+  getRenewalsThisMonth,
+  getTotalPrice,
   groupByCurrency,
+  groupByDuration,
 } from "@/lib/stats";
 import type { Subscription } from "@/lib/types";
 
@@ -81,6 +86,10 @@ export function StatsSection({ subscriptions }: StatsSectionProps) {
 
   const mostCostly = getMostCostlySubscription(filteredSubscriptions);
   const averageMonthly = calculateAverageMonthlyCost(filteredSubscriptions);
+  const yearlyCost = calculateYearlyCost(filteredSubscriptions);
+  const renewalsThisMonth = getRenewalsThisMonth(filteredSubscriptions);
+  const nextRenewal = getNextRenewal(filteredSubscriptions);
+  const byDuration = groupByDuration(filteredSubscriptions);
 
   return (
     <div className="flex flex-col gap-6">
@@ -131,8 +140,13 @@ export function StatsSection({ subscriptions }: StatsSectionProps) {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="font-bold text-2xl">
-              {formatCurrency(totalMonthly, selectedCurrency)}
+            <div className="flex flex-col gap-1">
+              <div className="font-bold text-2xl">
+                {formatCurrency(totalMonthly, selectedCurrency)}
+              </div>
+              <p className="text-muted-foreground text-xs">
+                {formatCurrency(yearlyCost, selectedCurrency)}/year
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -171,6 +185,121 @@ export function StatsSection({ subscriptions }: StatsSectionProps) {
           </CardContent>
         </Card>
       </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <Card>
+          <CardHeader>
+            <CardTitle className="font-medium text-muted-foreground text-sm">
+              Yearly Projection
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col gap-1">
+              <div className="font-bold text-2xl">
+                {formatCurrency(yearlyCost, selectedCurrency)}
+              </div>
+              <p className="text-muted-foreground text-xs">
+                Estimated annual spending
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="font-medium text-muted-foreground text-sm">
+              Renewals This Month
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col gap-1">
+              <div className="font-bold text-2xl">
+                {renewalsThisMonth.length}
+              </div>
+              <p className="text-muted-foreground text-xs">
+                {renewalsThisMonth.length > 0
+                  ? renewalsThisMonth
+                      .slice(0, 2)
+                      .map((sub) => sub.title)
+                      .join(", ") +
+                    (renewalsThisMonth.length > 2 ? "..." : "")
+                  : "No renewals"}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="font-medium text-muted-foreground text-sm">
+              Next Renewal
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {nextRenewal ? (
+              <div className="flex flex-col gap-1">
+                <div className="font-bold text-lg">
+                  {nextRenewal.subscription.title}
+                </div>
+                <p className="text-muted-foreground text-xs">
+                  {nextRenewal.date.toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  })}
+                </p>
+              </div>
+            ) : (
+              <div className="text-muted-foreground text-sm">
+                No upcoming renewals
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {Object.keys(byDuration).length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="font-medium text-muted-foreground text-sm">
+              Breakdown by Duration
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col gap-3">
+              {Object.entries(byDuration).map(([duration, subs]) => {
+                const durationTotal = subs.reduce(
+                  (sum, sub) =>
+                    sum +
+                    calculateMonthlyCost(
+                      getTotalPrice(sub),
+                      sub.recurringDuration
+                    ),
+                  0
+                );
+                return (
+                  <div
+                    className="flex items-center justify-between"
+                    key={duration}
+                  >
+                    <div className="flex flex-col gap-0.5">
+                      <span className="font-medium text-sm capitalize">
+                        {duration.replace("-", " ")}
+                      </span>
+                      <span className="text-muted-foreground text-xs">
+                        {subs.length} subscription{subs.length !== 1 ? "s" : ""}
+                      </span>
+                    </div>
+                    <div className="font-semibold text-sm">
+                      {formatCurrency(durationTotal, selectedCurrency)}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {mostCostly && (
         <Card>

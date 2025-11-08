@@ -178,3 +178,82 @@ export function calculateNextRenewalDate(subscription: Subscription): Date {
 
   return nextRenewal;
 }
+
+export function calculateYearlyCost(subscriptions: Subscription[]): number {
+  return subscriptions.reduce((sum, sub) => {
+    const totalPrice = getTotalPrice(sub);
+    const monthlyCost = calculateMonthlyCost(totalPrice, sub.recurringDuration);
+    return sum + monthlyCost * 12;
+  }, 0);
+}
+
+export function getUpcomingRenewals(
+  subscriptions: Subscription[],
+  daysAhead: number = 30
+): Subscription[] {
+  const now = new Date();
+  const futureDate = new Date();
+  futureDate.setDate(now.getDate() + daysAhead);
+
+  return subscriptions
+    .map((sub) => ({
+      subscription: sub,
+      nextRenewal: calculateNextRenewalDate(sub),
+    }))
+    .filter(
+      ({ nextRenewal }) => nextRenewal >= now && nextRenewal <= futureDate
+    )
+    .sort((a, b) => a.nextRenewal.getTime() - b.nextRenewal.getTime())
+    .map(({ subscription }) => subscription);
+}
+
+export function getRenewalsThisMonth(
+  subscriptions: Subscription[]
+): Subscription[] {
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+  return subscriptions
+    .map((sub) => ({
+      subscription: sub,
+      nextRenewal: calculateNextRenewalDate(sub),
+    }))
+    .filter(
+      ({ nextRenewal }) =>
+        nextRenewal >= startOfMonth && nextRenewal <= endOfMonth
+    )
+    .sort((a, b) => a.nextRenewal.getTime() - b.nextRenewal.getTime())
+    .map(({ subscription }) => subscription);
+}
+
+export function groupByDuration(
+  subscriptions: Subscription[]
+): Record<RecurringDuration, Subscription[]> {
+  return subscriptions.reduce(
+    (acc, sub) => {
+      if (!acc[sub.recurringDuration]) {
+        acc[sub.recurringDuration] = [];
+      }
+      acc[sub.recurringDuration].push(sub);
+      return acc;
+    },
+    {} as Record<RecurringDuration, Subscription[]>
+  );
+}
+
+export function getNextRenewal(subscriptions: Subscription[]): {
+  subscription: Subscription;
+  date: Date;
+} | null {
+  if (subscriptions.length === 0) return null;
+
+  const renewals = subscriptions
+    .map((sub) => ({
+      subscription: sub,
+      date: calculateNextRenewalDate(sub),
+    }))
+    .sort((a, b) => a.date.getTime() - b.date.getTime());
+
+  return renewals[0];
+}
