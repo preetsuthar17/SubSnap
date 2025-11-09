@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { type NextRequest, NextResponse } from "next/server";
 import { getSubscriptionRepository } from "@/lib/services/subscription-service";
+import type { Subscription } from "@/lib/types";
 
 export async function GET(
   request: NextRequest,
@@ -44,16 +45,9 @@ export async function PATCH(
     const body = await request.json();
 
     // Convert date strings to Date objects if present
-    const updateData: Partial<{
-      title: string;
-      description?: string;
-      url?: string;
-      price: number;
-      charges?: Array<{ amount: number; dayOfMonth: number; startDate: Date }>;
-      currency: string;
-      recurringDuration: string;
-      startDate: Date;
-    }> = { ...body };
+    const updateData: Partial<Omit<Subscription, "id" | "createdAt">> = {
+      ...body,
+    };
 
     if (body.startDate !== undefined) {
       updateData.startDate =
